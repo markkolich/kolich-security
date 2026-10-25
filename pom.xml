@@ -1,0 +1,302 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        Shared library versions (jbcrypt, JUnit), and the Checkstyle, PMD, duplicate-finder and
+        versions-maven-plugin configuration (from kolich-build-config), come from kolich-parent.
+    -->
+    <parent>
+        <groupId>com.kolich</groupId>
+        <artifactId>kolich-parent</artifactId>
+        <version>1.0.0</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.kolich</groupId>
+    <artifactId>kolich-security</artifactId>
+    <version>1.1-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <!--
+            A library: built for Java 11, not the parent's 21, so it stays usable by older consumers.
+            The parent's PMD configuration reads this property too.
+        -->
+        <project.java-release.version>11</project.java-release.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+
+        <!-- Plugins the parent doesn't manage. -->
+        <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
+        <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
+        <maven-surefire-plugin.version>3.6.0</maven-surefire-plugin.version>
+        <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
+        <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
+        <maven-antrun-plugin.version>3.2.0</maven-antrun-plugin.version>
+
+        <!-- Libraries only kolich-security uses; everything else is versioned by kolich-parent. -->
+        <jsr305.version>3.0.2</jsr305.version>
+    </properties>
+
+    <organization>
+        <name>Mark Kolich</name>
+        <url>https://github.com/markkolich/kolich-security</url>
+    </organization>
+
+    <developers>
+        <developer>
+            <id>markkolich</id>
+            <name>Mark Kolich</name>
+            <url>https://mark.koli.ch</url>
+            <roles>
+                <role>developer</role>
+            </roles>
+            <timezone>-8</timezone>
+        </developer>
+    </developers>
+
+    <dependencies>
+
+        <!-- ###################### -->
+        <!-- 3rd party dependencies -->
+        <!-- ###################### -->
+
+        <!--
+            Compile-time only; `provided` scope so that consumers of this library do not
+            inherit a transitive dependency on the annotations. Nothing in this library
+            reads these annotations at runtime.
+        -->
+        <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>jsr305</artifactId>
+            <version>${jsr305.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!--
+            Only `PasswordHasher` needs jbcrypt, so it is declared `optional` here: it will not
+            leak onto a consumer's classpath transitively. Consumers that use `PasswordHasher`
+            declare jbcrypt themselves. This keeps `ByteSigner` and `StringSigner` on a pure-JDK
+            code path with zero runtime dependencies.
+        -->
+        <dependency>
+            <groupId>org.mindrot</groupId>
+            <artifactId>jbcrypt</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ###################### -->
+        <!-- Test dependencies -->
+        <!-- ###################### -->
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven-compiler-plugin.version}</version>
+                <configuration>
+                    <release>${project.java-release.version}</release>
+                    <compilerArgs>
+                        <arg>-Xlint:all</arg>
+                        <arg>-Xlint:-processing</arg>
+                        <arg>-Xlint:-serial</arg>
+                        <arg>-Xlint:-try</arg>
+                        <arg>-Xdiags:verbose</arg>
+                        <arg>-Werror</arg>
+                    </compilerArgs>
+                    <showWarnings>true</showWarnings>
+                    <showDeprecation>true</showDeprecation>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven-surefire-plugin.version}</version>
+                <configuration>
+                    <systemPropertyVariables>
+                        <!-- Keeps the Surefire "ForkedBooter" from popping up in the MacOS dock. -->
+                        <java.awt.headless>true</java.awt.headless>
+                        <!-- Forces unit tests to run in the context of a known timezone: PST/PDT. -->
+                        <user.timezone>America/Los_Angeles</user.timezone>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+            <!-- Checkstyle, PMD and the duplicate finder are configured in kolich-parent. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.basepom.maven</groupId>
+                <artifactId>duplicate-finder-maven-plugin</artifactId>
+            </plugin>
+            <!-- Delete the dist/ directory on clean. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>${maven-clean-plugin.version}</version>
+                <configuration>
+                    <filesets>
+                        <fileset>
+                            <directory>dist</directory>
+                            <followSymlinks>false</followSymlinks>
+                        </fileset>
+                    </filesets>
+                </configuration>
+            </plugin>
+            <!-- Attach a -sources.jar, written straight into dist/ alongside the main artifact. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>${maven-source-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>dist/${project.artifactId}/${project.version}</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Copies the resulting JAR and its POM into the dist/ directory. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>${maven-dependency-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>copy-artifact</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>${project.groupId}</groupId>
+                                    <artifactId>${project.artifactId}</artifactId>
+                                    <version>${project.version}</version>
+                                    <type>${project.packaging}</type>
+                                </artifactItem>
+                                <!-- Copy the artifact POM into dist/ too. -->
+                                <artifactItem>
+                                    <groupId>${project.groupId}</groupId>
+                                    <artifactId>${project.artifactId}</artifactId>
+                                    <version>${project.version}</version>
+                                    <type>pom</type>
+                                </artifactItem>
+                            </artifactItems>
+                            <outputDirectory>dist/${project.artifactId}/${project.version}</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Generates .md5/.sha1 checksum sidecar files for every artifact copied into dist/, matching
+                 the checksums a real Maven repository expects alongside each published artifact. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>${maven-antrun-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>checksum-dist-artifacts</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <checksum algorithm="MD5" fileext=".md5">
+                                    <fileset dir="dist/${project.artifactId}/${project.version}">
+                                        <include name="*.jar" />
+                                        <include name="*.pom" />
+                                    </fileset>
+                                </checksum>
+                                <checksum algorithm="SHA-1" fileext=".sha1">
+                                    <fileset dir="dist/${project.artifactId}/${project.version}">
+                                        <include name="*.jar" />
+                                        <include name="*.pom" />
+                                    </fileset>
+                                </checksum>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+                `mvn versions:display-dependency-updates`: dump a list of dependencies that need upgrading.
+                `mvn versions:display-plugin-updates`: dump a list of plugin dependencies that need upgrading.
+                Configured in kolich-parent; this only adds not writing pom.xml.versionsBackup files.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>versions-maven-plugin</artifactId>
+                <configuration>
+                    <generateBackupPoms>false</generateBackupPoms>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
+
+    <repositories>
+        <repository>
+            <id>markkolich.github.io</id>
+            <name>markkolich.github.io</name>
+            <url>https://markkolich.github.io/repo</url>
+            <releases />
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
+    <!--
+        Maven resolves a plugin's own dependencies from <pluginRepositories>, not <repositories>.
+        kolich-parent puts kolich-build-config on the Checkstyle, PMD and versions plugin
+        classpaths, so without this the build only finds it if it is already in ~/.m2.
+    -->
+    <pluginRepositories>
+        <pluginRepository>
+            <id>markkolich.github.io</id>
+            <name>markkolich.github.io</name>
+            <url>https://markkolich.github.io/repo</url>
+            <releases />
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
+    </pluginRepositories>
+
+</project>
